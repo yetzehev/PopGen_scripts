@@ -1,0 +1,213 @@
+---
+title: "plot_SFS"
+author: "Idalia Rojas"
+date: "6/17/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#libraries 
+
+```
+
+## SFS computed with ANGSD
+
+SFS built with ANGSD, Sammtools Genotype Lykelihood Model (-GL 1)
+For 'n' diploid samples, the site frequency spectrum (SFS) is the (2n+1) vector containing the proportion of site carrying 'k'-mutations. This means that the first element in the SFS is the proportion of sites where we don't observe any mutations, The second value is the proportion of sites where we observe 1 mutations. However I assumed an haploid model for Zymoseptoria. 
+
+Methods described in [Nielsen, 2012](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0037558)
+
+```{r }
+
+#plot the results
+nnorm <- function(x) x/sum(x)
+
+#Load SFS
+#Aegilops
+sfs.aeg <-scan("../sfs/Zt.aeg.sfs")
+sfs.aeg.norm<- nnorm(rbind(sfs.aeg[-1])) #The first value represent the expected number of sites with derived allele frequency equal to 0
+  #Plot counts
+  barplot(sfs.aeg[-c(1)], names=1:29)#29 genotypes
+  #Data normalization
+  barplot(sfs.aeg.norm, names=1:29)
+
+#Wheat
+sfs.wht <-scan("../sfs/Zt.wht.sfs")
+sfs.wht.norm<- nnorm(rbind(sfs.wht[-1]))
+  #Plot counts
+  barplot(sfs.wht[-c(1)], names=1:45) #45 genotypes
+  #Data normalization
+  barplot(sfs.wht.norm, names=1:45)
+  
+#wheat subset 29 individuals
+sfs.wht29 <- scan("../sfs/Zt.wht29.sfs")
+sfs.wht29.norm<- nnorm(rbind(sfs.wht29[-1]))
+  #Plot counts
+  barplot(sfs.wht29[-c(1)], names=1:29) #29 genotypes
+  #Data normalization
+  barplot(sfs.wht29.norm, names=1:29)
+
+
+#expected number of sites with 1:28 derived alleles
+ #I removed the last count for 29 copies, almost all sites have a count ~ 29
+sfs.wht <-sfs.wht[c(1:30)]
+res <- rbind(
+  AEG=sfs.aeg[-1],
+  WHT.n45=sfs.wht[-1],
+  WHT=sfs.wht29[-1]
+)
+# density instead of expected counts
+
+
+#plot the none ancestral sites
+res <- t(apply(res,1,nnorm))
+barplot(res,beside=T,legend=c("AEG","WTHn45", "WHT"),names=1:29,main="realSFS",args.legend = list(x="center"))
+#The fair comparison is between dataset with same number of chromosomes
+barplot(res[c(1,3),],beside=T,legend=c("AEG","WHT"),names=1:29,main="SFS fixed sites",args.legend = list(x="center"))
+#polymorphic sites
+resPoly <- t(apply(res[,-29],1,nnorm))
+barplot(resPoly,beside=T,legend=c("AEG","WTH"),names=1:28,main="realSFS polymorphic sites",args.legend = list(x="center"))
+barplot(resPoly[c(1,3),],beside=T,legend=c("AEG","WTH"),names=1:28,main="SFS polymorphic sites",args.legend = list(x="center"))
+
+#export plots
+
+png(filename = "../out/plots/sfs.aegWht.29chr.png")
+barplot(res[c(1,3),],beside=T,legend=c("AEG","WTH"),names=1:29,main="SFS fixed sites",args.legend = list(x="topleft"))
+dev.off()
+
+png(filename = "../out/plots/sfs.aegWht.28chr.png")
+barplot(resPoly[c(1,3),],beside=T,legend=c("AEG","WTH"),names=1:28,main="SFS polymorphic sites",args.legend = list(x="topright"))
+dev.off()
+
+```
+
+## SFS computed with ANGSD
+
+Testing GATK Genotype Likelihood Model (GL-2)
+
+```{r}
+#Load SFS
+#Aegilops
+sfs.aeg.gl2 <-scan("../sfs/Zt.aeg.gl2.sfs")
+sfs.aeg.gl2.norm<- nnorm(rbind(sfs.aeg.gl2[-c(1,91)])) #The first value represent the expected number of sites with derived allele frequency equal to 0
+
+#Plot counts
+barplot(sfs.aeg.gl2.norm[-c(1)], names=1:89)#29 genotypes
+#Data normalization
+barplot(sfs.aeg.gl2.norm, names=1:89)
+
+```
+
+## Diversity stats
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+library(reshape2)
+library(plyr)
+
+#Diversity stats per chromosome
+aeg.globTheta <- read.delim("../sfs/Zt.aeg.theta.thetaGlobal.gz.pestPG", header = T)
+wht.globTheta <- read.delim("../sfs/Zt.wht.theta.thetaGlobal.gz.pestPG", header = T)
+wht29.globTheta <- read.delim("../sfs/Zt.wht29.theta.thetaGlobal.gz.pestPG", header = T)
+
+aeg.windTheta <- read.delim("../sfs/Zt.aeg.theta.thetasWindow.gz.pestPG")
+aeg.windTheta$tW.site <- aeg.windTheta$tW/aeg.windTheta$nSites
+aeg.windTheta$tP.site <- aeg.windTheta$tP/aeg.windTheta$nSites
+
+wht.windTheta <- read.delim("../sfs/Zt.wht.theta.thetasWindow.gz.pestPG")
+wht.windTheta$tW.site <- wht.windTheta$tW/wht.windTheta$nSites
+wht.windTheta$tP.site <- wht.windTheta$tP/wht.windTheta$nSites
+
+wht29.windTheta <- read.delim("../sfs/Zt.wht29.theta.thetasWindow.gz.pestPG")
+wht29.windTheta$tW.site <- wht29.windTheta$tW/wht29.windTheta$nSites
+wht29.windTheta$tP.site <- wht29.windTheta$tP/wht29.windTheta$nSites
+
+theta.win <-merge(aeg.windTheta, wht.windTheta, by = c("Chr", "WinCenter"))
+theta.win2 <- merge(aeg.windTheta, wht29.windTheta, by = c("Chr","WinCenter"))
+
+theta.glob <- data.frame(Chr = aeg.globTheta$Chr,
+                    Aeg.tW = aeg.globTheta$tW/aeg.globTheta$nSites,
+                    Aeg.tP = aeg.globTheta$tP/aeg.globTheta$nSites,
+                    Trt.tW = wht.globTheta$tW/wht.globTheta$nSites,
+                    Trt.tP = wht.globTheta$tP/wht.globTheta$nSites,
+                    Trt29.tW = wht29.globTheta$tW/wht29.globTheta$nSites,
+                    Trt29.tP = wht29.globTheta$tP/wht29.globTheta$nSites)
+
+theta.wind <- data.frame(Chr = theta.win$Chr,
+                    Aeg.tW = theta.win$tW.site.x,
+                    Aeg.tP = theta.win$tP.site.x,
+                    Trt.tW = theta.win$tW.site.y,
+                    Trt.tP = theta.win$tP.site.y,
+                    Trt29.tW = theta.win2$tW.site.y,
+                    Trt29.tP = theta.win2$tP.site.y)
+
+
+#Plot Globa;
+
+global <- melt(theta.glob[,], id.vars="Chr")
+global$host <- c(rep( "Aegalops",42),rep( "Triticum",42), rep( "TriticumN29",42) )
+
+
+window <- melt(theta.wind[,], id.vars="Chr")
+window$host <- c(rep( "Aegalops",1474),rep( "Triticum",1474), rep( "TriticumN29",1474) )
+
+# Everything on the same plot
+ggplot(global, aes(Chr,value, col=variable)) + 
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 90))
+
+
+#Plot violin
+png(filename = "../out/plots/theta.Pi.plot_bp.png", height = 400, width = 500)
+bp.win <- ggplot(window, aes(factor(variable), value, fill = host)) 
+bp.win + geom_boxplot() +
+  ylab("θ & π")+
+  theme_light(base_size = 14)+theme(axis.title.x=element_blank())
+dev.off()
+
+
+
+vp.wind <- ggplot(window, aes(x=variable, y=value, fill=host)) + 
+  geom_violin()+
+  stat_summary(fun=mean, geom="point", shape=23, size=2)
+
+
+vp.wind
+```
+
+
+```{r}
+sfs.aegs1 <- scan("../sfs/Zt.aeg.set1.sfs")
+sfs.aegs2 <- scan("../sfs/Zt.aeg.set2.sfs")
+sfs.aegs3 <- scan("../sfs/Zt.aeg.set3.sfs")
+
+sfs.whts1 <- scan("../sfs/Zt.wht.set1.sfs")
+sfs.whts2 <- scan("../sfs/Zt.wht.set2.sfs")
+sfs.whts3 <- scan("../sfs/Zt.wht.set3.sfs")
+
+#Make a data frame
+subsets <- rbind(
+  AEG.1=sfs.aegs1[-1],
+  AEG.2=sfs.aegs2[-1],
+  AEG.3=sfs.aegs3[-1],
+  WHT.1=sfs.whts1[-1],
+  WHT.2=sfs.whts2[-1],
+  WHT.3=sfs.whts3[-1]
+)
+# density instead of expected counts
+
+#plot the none ancestral sites
+subsets <- t(apply(subsets,1,nnorm))
+
+barplot(subsets,beside=T,legend=c("AEG.1","AEG.2","AEG.3",
+                              "WHT.1","WHT.2","WHT.3"),names=1:16,main="realSFS",args.legend = list(x="center", cex=0.75))
+barplot(subsets[,-16],beside=T,legend=c("AEG.1","AEG.2","AEG.3",
+                              "WHT.1","WHT.2","WHT.3"),names=1:15,main="realSFS polymorfphic sites",args.legend = list(x="topright", cex=0.75))
+
+```
